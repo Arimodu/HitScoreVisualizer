@@ -22,6 +22,7 @@ namespace HitScoreVisualizer.Installers
 
 			Container.Bind<JudgmentService>().AsSingle();
 			Container.BindInterfacesTo<FlyingScoreEffectPatch>().AsSingle();
+			Container.BindInterfacesTo<GameplayCoreInstallerPatch>().AsSingle();
 			Container.BindInterfacesTo<EffectPoolsManualInstallerPatch>().AsSingle();
 		}
 	}
