@@ -1,10 +1,52 @@
 using HitScoreVisualizer.Services;
 using HitScoreVisualizer.Settings;
+using SiraUtil.Affinity;
 using UnityEngine;
 using Zenject;
 
 namespace HitScoreVisualizer.Models
 {
+	public class HsvFlyingScoreEffectPatchHooks : IAffinity
+	{
+		[AffinityPrefix]
+		[AffinityPatch(typeof(FlyingScoreEffect), nameof(FlyingScoreEffect.InitAndPresent))]
+		internal bool InitAndPresentReplacement(FlyingScoreEffect __instance, IReadonlyCutScoreBuffer cutScoreBuffer, float duration, Vector3 targetPos, Color color)
+		{
+			if (__instance is HsvFlyingScoreEffect hsvInstance)
+			{
+				hsvInstance.InitAndPresent(cutScoreBuffer, duration, targetPos, color);
+				return false;
+			}
+
+			return true;
+		}
+
+		[AffinityPrefix]
+		[AffinityPatch(typeof(FlyingScoreEffect), nameof(FlyingScoreEffect.HandleCutScoreBufferDidChange))]
+		internal bool HandleCutScoreBufferDidChangeReplacement(FlyingScoreEffect __instance, CutScoreBuffer cutScoreBuffer)
+		{
+			if (__instance is HsvFlyingScoreEffect hsvInstance)
+			{
+				hsvInstance.HandleCutScoreBufferDidChange(cutScoreBuffer);
+				return false;
+			}
+
+			return true;
+		}
+
+		[AffinityPrefix]
+		[AffinityPatch(typeof(FlyingScoreEffect), nameof(FlyingScoreEffect.HandleCutScoreBufferDidFinish))]
+		internal bool HandleCutScoreBufferDidFinishReplacement(FlyingScoreEffect __instance, CutScoreBuffer cutScoreBuffer)
+		{
+			if (__instance is HsvFlyingScoreEffect hsvInstance)
+			{
+				hsvInstance.HandleCutScoreBufferDidFinish(cutScoreBuffer);
+				return false;
+			}
+			return true;
+		}
+	}
+
 	internal sealed class HsvFlyingScoreEffect : FlyingScoreEffect
 	{
 		private JudgmentService _judgmentService = null!;
@@ -17,7 +59,7 @@ namespace HitScoreVisualizer.Models
 			_configuration = configProvider.GetCurrentConfig();
 		}
 
-		public override void InitAndPresent(IReadonlyCutScoreBuffer cutScoreBuffer, float duration, Vector3 targetPos, Color color)
+		public new void InitAndPresent(IReadonlyCutScoreBuffer cutScoreBuffer, float duration, Vector3 targetPos, Color color)
 		{
 			if (_configuration != null)
 			{
@@ -59,14 +101,15 @@ namespace HitScoreVisualizer.Models
 			InitAndPresent(duration, targetPos, cutScoreBuffer.noteCutInfo.worldRotation, false);
 		}
 
-		protected override void ManualUpdate(float t)
+		public override void ManualUpdate(float t)
 		{
-			var color = _color.ColorWithAlpha(_fadeAnimationCurve.Evaluate(t));
+			var c = _color;
+			var color = new Color(c.r, c.g, c.b, _fadeAnimationCurve.Evaluate(t));
 			_text.color = color;
 			_maxCutDistanceScoreIndicator.color = color;
 		}
 
-		public override void HandleCutScoreBufferDidChange(CutScoreBuffer cutScoreBuffer)
+		public new void HandleCutScoreBufferDidChange(CutScoreBuffer cutScoreBuffer)
 		{
 			if (_configuration == null)
 			{
@@ -80,7 +123,7 @@ namespace HitScoreVisualizer.Models
 			}
 		}
 
-		public override void HandleCutScoreBufferDidFinish(CutScoreBuffer cutScoreBuffer)
+		public new void HandleCutScoreBufferDidFinish(CutScoreBuffer cutScoreBuffer)
 		{
 			if (_configuration != null)
 			{
