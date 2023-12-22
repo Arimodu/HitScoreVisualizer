@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using HitScoreVisualizer.Extensions;
 using HitScoreVisualizer.Settings;
@@ -30,16 +31,21 @@ namespace HitScoreVisualizer.Services
 			text.enableWordWrapping = false;
 			text.overflowMode = TextOverflowModes.Overflow;
 
-			// save in case we need to fade
-			var index = config.Judgments!.FindIndex(j => j.Threshold <= score);
-			var judgment = index >= 0 ? config.Judgments[index] : Judgment.Default;
+			// Selects the Judgment with a Threshold less than or equal to the score
+			// Or the smallest Threshold if no such Judgment exists.
+			var judgment = config.Judgments
+                .Where(j => j.Threshold <= score)
+                .DefaultIfEmpty(config.Judgments.OrderBy(j => j.Threshold).First())
+                .LastOrDefault();
+
+			var index = config.Judgments!.IndexOf(judgment);
 
 			if (judgment.Fade)
 			{
-				var fadeJudgment = config.Judgments[index - 1];
+				var fadeJudgment = index > 0 ? config.Judgments[index - 1] : judgment;
 				var baseColor = judgment.Color.ToColor();
 				var fadeColor = fadeJudgment.Color.ToColor();
-				var lerpDistance = Mathf.InverseLerp(judgment.Threshold, fadeJudgment.Threshold, score);
+				var lerpDistance = judgment == fadeJudgment ? 0 : Mathf.InverseLerp(judgment.Threshold, fadeJudgment.Threshold, score);
 				color = Color.Lerp(baseColor, fadeColor, lerpDistance);
 			}
 			else
