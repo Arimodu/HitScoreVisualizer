@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using HitScoreVisualizer.Extensions;
 using HitScoreVisualizer.Settings;
+using SiraUtil.Logging;
 using TMPro;
 using UnityEngine;
 
@@ -11,10 +12,12 @@ namespace HitScoreVisualizer.Services
 	internal class JudgmentService
 	{
 		private readonly ConfigProvider _configProvider;
+		private static SiraLog? _siraLog;
 
-		public JudgmentService(ConfigProvider configProvider)
+		public JudgmentService(ConfigProvider configProvider, SiraLog siraLog)
 		{
 			_configProvider = configProvider;
+			_siraLog = siraLog;
 		}
 
 		internal void Judge(ScoreModel.NoteScoreDefinition noteScoreDefinition, ref TextMeshPro text, ref Color color, int score, int before, int after, int accuracy, float timeDependence)
@@ -33,16 +36,17 @@ namespace HitScoreVisualizer.Services
 
 			// Selects the Judgment with a Threshold less than or equal to the score
 			// Or the smallest Threshold if no such Judgment exists.
-			var judgment = config.Judgments
+			var judgment = config.Judgments!
+				.OrderByDescending(j => j.Threshold)
                 .Where(j => j.Threshold <= score)
-                .DefaultIfEmpty(config.Judgments.OrderBy(j => j.Threshold).First())
-                .LastOrDefault();
+                .DefaultIfEmpty(config.Judgments.OrderByDescending(j => j.Threshold).Last())
+                .First(); // Collection is guaranteed to have at least one element
 
 			var index = config.Judgments!.IndexOf(judgment);
 
 			if (judgment.Fade)
 			{
-				var fadeJudgment = index > 0 ? config.Judgments[index - 1] : judgment;
+				var fadeJudgment = index > 0 ? config.Judgments[index - 1] : judgment; // If there is no previous judgment, use the current one
 				var baseColor = judgment.Color.ToColor();
 				var fadeColor = fadeJudgment.Color.ToColor();
 				var lerpDistance = judgment == fadeJudgment ? 0 : Mathf.InverseLerp(judgment.Threshold, fadeJudgment.Threshold, score);
@@ -162,7 +166,8 @@ namespace HitScoreVisualizer.Services
 				}
 			}
 
-			return string.Empty;
+			// If no judgment is found, use the highest judgment
+			return FormatTimeDependenceSegment(judgments.OrderByDescending(j => j.Threshold).First(), scoreForSegment, instance);
 		}
 
 		private static string FormatTimeDependenceSegment(TimeDependenceJudgmentSegment? judgment, float timeDependence, Configuration instance)
